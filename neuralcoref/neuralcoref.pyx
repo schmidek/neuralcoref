@@ -361,47 +361,6 @@ cdef void _extract_from_sent(TokenC* doc_c, int sent_start, int sent_end, SentSp
                 test = add_span(token.l_edge, token.r_edge+1, mentions_spans, doc_c)
                 if test: return
             continue
-        # Add NP mention
-        # if debug: print("NP mention")
-        if token.lex.lower == hashes.POSSESSIVE_MARK: # Take care of 's
-            # if debug: print("Take care of 's")
-            c_head = i + token.head
-            j = 0
-            while c_head != 0 and j < MAX_ITER:
-                if doc_c[c_head].dep == hashes.NSUBJ_MARK:
-                    start, end = enlarge_span(doc_c, c_head, sent_start, sent_end, 1, hashes)
-                    test = add_span(start, end+1, mentions_spans, doc_c)
-                    if test: return
-                    break
-                c_head += doc_c[c_head].head
-                j += 1
-            continue
-        # if debug: print("Enlarge span")
-        for j in range(sent_start, sent_end):
-            c = doc_c[j]
-        start, end = enlarge_span(doc_c, i, sent_start, sent_end, 0, hashes)
-        if token.tag == hashes.IN_TAG and token.dep == hashes.MARK_DEP and start == end:
-            start, end = enlarge_span(doc_c, i + token.head, sent_start, sent_end, 0, hashes)
-        if start == end:
-            # if debug: print("Empty span")
-            continue
-        if doc_c[start].lex.lower == hashes.POSSESSIVE_MARK:
-            # if debug: print("we probably already have stored this mention")
-            continue # we probably already have stored this mention
-        test = add_span(start, end, mentions_spans, doc_c)
-        if test: return
-        test = False
-        for tok in doc_c[sent_start:sent_end]:
-            if inside(tok.dep, hashes.conj_or_prep):
-                test = True
-                break
-        if test:
-            # if debug: print("conj_or_prep")
-            start, end = enlarge_span(doc_c, i, sent_start, sent_end, 0, hashes)
-            if start == end:
-                continue
-            test = add_span(start, end, mentions_spans, doc_c)
-            if test: return
     return
 
 cdef extract_mentions_spans(Doc doc, HashesList hashes, bint blacklist=False):
