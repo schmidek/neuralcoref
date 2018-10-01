@@ -514,7 +514,7 @@ cdef class NeuralCoref(object):
             self.conv_dict.add(key=norm_k, vector=embed_vector/max(len(norm_w), 1))
 
     def __call__(self, doc, greedyness=None, max_dist=None, max_dist_match=None,
-             conv_dict=None, blacklist=None):
+             conv_dict=None, blacklist=None, mentions_override=None):
         """Apply the pipeline component on a Doc object. """
         if greedyness is None:
             greedyness = self.cfg.get('greedyness', 0.5)
@@ -529,7 +529,7 @@ cdef class NeuralCoref(object):
         if conv_dict is not None:
             self.set_conv_dict(conv_dict)
         annotations = self.predict([doc], greedyness=greedyness, max_dist=max_dist,
-                                  max_dist_match=max_dist_match, blacklist=blacklist)
+                                  max_dist_match=max_dist_match, blacklist=blacklist, mentions_override=mentions_override)
         self.set_annotations([doc], annotations)
         return doc
 
@@ -561,7 +561,7 @@ cdef class NeuralCoref(object):
             yield from docs
 
     def predict(self, docs, float greedyness=0.5, int max_dist=50, int max_dist_match=500,
-                conv_dict=None, bint blacklist=False):
+                conv_dict=None, bint blacklist=False, mentions_override=None):
         ''' Predict coreference clusters
         docs (iterable): A sequence of `Doc` objects.
         RETURNS (iterable): List of (lists of mentions, lists of clusters, lists of main mentions per cluster) for each doc.
@@ -589,7 +589,11 @@ cdef class NeuralCoref(object):
             mem = Pool() # We use this for doc specific allocation
             strings = doc.vocab.strings
             # ''' Extract mentions '''
-            mentions, n_mentions = extract_mentions_spans(doc, self.hashes, blacklist=blacklist)
+            if mentions_override is None:
+                mentions, n_mentions = extract_mentions_spans(doc, self.hashes, blacklist=blacklist)
+            else:
+                mentions = mentions_override
+                n_mentions = len(mentions)
             n_sents = len(list(doc.sents))
             mentions = sorted((m for m in mentions), key=lambda m: (m.root.i, m.start))
             c = <Mention_C*>mem.alloc(n_mentions, sizeof(Mention_C))
